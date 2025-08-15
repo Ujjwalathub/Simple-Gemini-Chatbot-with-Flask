@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gemini Chatbot</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="header">
+            <h2>Gemini Chatbot ✨</h2>
+        </div>
+        <div id="chat-window">
+            <div class="message bot-message">
+                <p>Hello! How can I help you today?</p>
+            </div>
+        </div>
+        <div id="input-container">
+            <input type="text" id="message-input" placeholder="Type your message..." autocomplete="off">
+            <button id="send-btn">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" width="24" height="24">
+                    <path d="M3.478 2.405a.75.75 0 00-.926.94l2.432 7.905H13.5a.75.75 0 010 1.5H4.984l-2.432 7.905a.75.75 0 00.926.94 60.519 60.519 0 0018.445-8.986.75.75 0 000-1.218A60.517 60.517 0 003.478 2.405z" />
+                </svg>
+            </button>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const chatWindow = document.getElementById('chat-window');
+            const messageInput = document.getElementById('message-input');
+            const sendBtn = document.getElementById('send-btn');
+
+            // THIS FUNCTION IS NOW UPDATED
+            const addMessage = (sender, text) => {
+                const messageDiv = document.createElement('div');
+                messageDiv.classList.add('message', `${sender}-message`);
+
+                if (sender === 'bot') {
+                    // For bot messages, parse Markdown and set as innerHTML
+                    messageDiv.innerHTML = marked.parse(text);
+                } else {
+                    // For user messages, just use a p tag to prevent HTML injection
+                    const p = document.createElement('p');
+                    p.textContent = text;
+                    messageDiv.appendChild(p);
+                }
+                
+                chatWindow.appendChild(messageDiv);
+                chatWindow.scrollTop = chatWindow.scrollHeight; // Auto-scroll to the bottom
+            };
+
+            const handleSendMessage = async () => {
+                const message = messageInput.value.trim();
+                if (!message) return;
+
+                addMessage('user', message);
+                messageInput.value = '';
+
+                const typingIndicator = document.createElement('div');
+                typingIndicator.classList.add('message', 'bot-message', 'typing-indicator');
+                typingIndicator.innerHTML = '<p><span>.</span><span>.</span><span>.</span></p>';
+                chatWindow.appendChild(typingIndicator);
+                chatWindow.scrollTop = chatWindow.scrollHeight;
+
+                try {
+                    const response = await fetch('/chat', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ message: message })
+                    });
+                    
+                    chatWindow.removeChild(typingIndicator);
+
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    
+                    const data = await response.json();
+                    addMessage('bot', data.reply);
+
+                } catch (error) {
+                    console.error('Error:', error);
+                    addMessage('bot', 'Sorry, I encountered an error. Please try again.');
+                }
+            };
+
+            sendBtn.addEventListener('click', handleSendMessage);
+            messageInput.addEventListener('keydown', (event) => {
+                if (event.key === 'Enter') {
+                    handleSendMessage();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
